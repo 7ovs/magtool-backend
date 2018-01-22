@@ -10,7 +10,8 @@
     "express-session": "^1.15.6",
     "lodash": "^4.17.4",
     "moment": "^2.20.1",
-    "pbkdf2-password": "^1.2.1"
+    "pbkdf2-password": "^1.2.1",
+    "redis": "^2.8.0"
   },
   "devDependencies": {
     "eslint": "^4.16.0",
