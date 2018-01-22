@@ -36,6 +36,18 @@ var auth = (name, password, callback) => {
     callback(new Error('invalid password'))
   })
 }
+
+var checkAuth = (req, res, next) => {
+  if (req.session.user) {
+    next()
+  } else {
+    res.json({
+      status: 'FAIL',
+      error: 'login is required'
+    })
+  }
+}
+
 app.use(cors())
 
 app.get('/', (req, res) => {
