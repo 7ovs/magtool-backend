@@ -2,6 +2,7 @@ var express = require('express')
 var cors = require('cors')
 var bodyParser = require('body-parser')
 var session = require('express-session')
+var hash = require('pbkdf2-password')()
 
 var app = express()
 
@@ -13,6 +14,18 @@ app.use(session({
 
 var jsonParser = bodyParser.json()
 
+var users = {
+  admin: {
+    name: 'admin'
+  }
+}
+
+// генерируем первоначальный хэш для admin пользователя
+hash({ password: 'secret' }, (err, pass, salt, hash) => {
+  if (err) throw err
+  users.admin.salt = salt
+  users.admin.hash = hash
+})
 app.use(cors())
 
 app.get('/', (req, res) => {
