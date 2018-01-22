@@ -91,9 +91,9 @@ app.post('/command', checkAuth, jsonParser, (req, res) => {
         status: 'OK',
         data: 'PONG'
       })
-      break;
+      break
     default:
-      break;
+      break
   }
 })
 
