@@ -2,6 +2,12 @@
   "name": "magtool-backend",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "start": "pm2 start process.config.json",
+    "stop": "pm2 stop magtool-backend",
+    "del": "pm2 delete magtool-backend",
+    "reset": "pm2 delete magtool-backend; pm2 start process.config.json"
+  },
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.18.2",

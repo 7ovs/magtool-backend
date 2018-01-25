@@ -1,0 +1,12 @@
+{
+  "name": "magtool-backend",
+  "script": "./index.js",
+  "out_file": "./var/log/server-out.log",
+  "error_file": "./var/log/server-error.log",
+  "pid_file": "./var/pid/server.pid",
+  "watch": true,
+  "ignore_watch": [
+    "node_modules",
+    "var"
+  ]
+}
