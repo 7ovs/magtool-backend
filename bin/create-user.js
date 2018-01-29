@@ -1,6 +1,8 @@
+var path = require('path')
 var RedisStore = require('../lib/store')
 var config = require('../etc/config.json')
 var hash = require('pbkdf2-password')()
+var { timeout } = require('../lib/util')
 
 var readInput = async () => {
   var question = async (query, password = false) => {
@@ -60,14 +62,8 @@ var createHash = async (password) => {
   })
 }
 
-var timeout = async (timeoutValue) => {
-  return new Promise((resolve) => {
-    setTimeout(resolve, timeoutValue)
-  })
-}
-
 var main = async () => {
-  if (!require('fs').existsSync(require('path').resolve('../' + config.redis.pidfile))) {
+  if (!require('fs').existsSync(path.resolve(path.join(__dirname, '..', config.redis.pidfile)))) {
     await RedisStore.startSrever(config.redis)
     await timeout(500)
   } else {
@@ -86,7 +82,7 @@ var main = async () => {
 
     await store.setMapVal('users', username, userobj)
 
-    console.log('4. saved', userobj)
+    console.log('OK!', userobj)
   } catch (error) {
     console.error(error.message)
   }
