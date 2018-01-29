@@ -4,24 +4,13 @@ var bodyParser = require('body-parser')
 var session = require('express-session')
 var hash = require('pbkdf2-password')()
 var config = require('./etc/config.json')
-var redis = require('redis')
-
-const { spawn } = require('child_process')
-const dbServer = spawn('redis-server', ['./etc/redis.conf'])
-dbServer.stdout.on('data', (data) => { process.stdout.write(data) })
-dbServer.stderr.on('data', (data) => { process.stderr.write(data) })
-dbServer.on('close', (code) => { process.stdout.write(`redis server exited with code ${code}\n`) })
-process.on('SIGINT', () => {
-  setTimeout(() => { process.exit(0) }, 100)
-})
-
-var rdb = redis.createClient(6400) // eslint-disable-line
+var store = require('./lib/store') // eslint-disable-line
 
 var app = express()
 
 app.use(session({
-  resave: false, // don't save session if unmodified
-  saveUninitialized: false, // don't create session until something stored
+  resave: false,
+  saveUninitialized: false,
   secret: 'shhhh, very secret'
 }))
 
@@ -33,7 +22,6 @@ var users = {
   }
 }
 
-// генерируем первоначальный хэш для admin пользователя
 hash({ password: 'secret' }, (err, pass, salt, hash) => {
   if (err) throw err
   users.admin.salt = salt
