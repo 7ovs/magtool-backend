@@ -6,13 +6,15 @@ var config = require('./etc/config.json')
 var jwt = require('jsonwebtoken')
 var RedisStore = require('./lib/store')
 var { timeout } = require('./lib/util')
+var path = require('path')
 
 var app = express()
 
 var jsonParser = bodyParser.json()
 
 var main = async () => {
-  if (!require('fs').existsSync(require('path').resolve('../' + config.redis.pidfile))) {
+  const pidPath = path.resolve(path.join(__dirname, config.redis.pidfile))
+  if (!require('fs').existsSync(pidPath)) {
     await RedisStore.startSrever(config.redis)
     await timeout(500)
   } else {
