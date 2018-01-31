@@ -77,6 +77,24 @@ var main = async () => {
     })
   })
 
+  app.post('/regen', (req, res) => {
+    try {
+      const token = req.headers['x-access-token']
+      if (!token) throw (new Error('token not found'))
+      const session = jwt.verify(token, config.session.secret)
+      var newToken = jwt.sign({ username: session.username }, config.session.secret, { expiresIn: config.session.expires_in })
+      res.json({
+        status: 'OK',
+        token: newToken
+      })
+    } catch (error) {
+      res.json({
+        status: 'FAIL',
+        error: error.message
+      })
+    }
+  })
+
   app.post('/logout', jsonParser, (req, res) => {
     res.json({
       status: 'OK'
