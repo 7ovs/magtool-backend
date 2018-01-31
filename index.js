@@ -24,8 +24,6 @@ var main = async () => {
   var store = new RedisStore(config.redis)
   var users = await store.getMap('users')
 
-  console.log(users)
-
   var auth = (name, password, callback) => {
     const user = users[name]
     if (!user) return callback(new Error('cannot find user'))
