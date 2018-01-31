@@ -1,6 +1,9 @@
 {
   "port": 3000,
-  "jwt_secret": "secret....",
+  "session": {
+    "secret": "secret....",
+    "expires_in": "4h"
+  },
   "redis": {
     "port": 6400,
     "bind": "127.0.0.1",
