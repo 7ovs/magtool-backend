@@ -84,6 +84,7 @@ var main = async () => {
       const token = req.headers['x-access-token']
       if (!token) throw (new Error('token not found'))
       const session = jwt.verify(token, config.session.secret)
+      if (!users[session.username]) throw (new Error('user not found'))
       var newToken = jwt.sign({ username: session.username }, config.session.secret, { expiresIn: config.session.expires_in })
       res.json({
         status: 'OK',
