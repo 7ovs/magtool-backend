@@ -7,6 +7,10 @@
   "watch": true,
   "ignore_watch": [
     "node_modules",
-    "var"
+    "var",
+    "dist",
+    ".git",
+    ".vscode",
+    "__lab"
   ]
 }
