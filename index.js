@@ -119,6 +119,66 @@ var main = async () => {
     }
   })
 
+  app.post('/control', checkAuth, jsonParser, (req, res) => {
+    if (!req.body) return res.sendStatus(400)
+    const cmd = req.body.command
+    console.log('POST /control', req.body)
+    switch (cmd) {
+      case 'PING':
+        console.log(new Date(), 'COMMAND PING')
+        res.json({
+          status: 'OK',
+          data: 'PONG'
+        })
+        break
+      case 'RESET':
+        const cmds = [
+          'service apache2 restart',
+          'service varnish restart',
+          'service nginx restart' ]
+        Promise.map(cmds, cmd => {
+          return execAsync(cmd)
+        }).then((results) => {
+          console.log('RESET SUCCESS: ', results)
+          res.json({ status: 'OK' })
+        }).catch(err => {
+          console.log('RESET FAIL: ', err)
+          res.json({
+            status: 'FAIL',
+            error: err.message
+          })
+        })
+        break
+      case 'CLEAN_CACHE':
+        execAsync('/var/www/magento21/bin/magento cache:flush', { cwd: '/var/www/magento21' })
+          .then(result => {
+            console.log('cache:flush', result)
+            execAsync('service varnish restart')
+          })
+          .then(result => {
+            console.log('service varnish restart', result)
+            res.json({ status: 'OK' })
+          })
+        break
+      case 'GET_LOG':
+        var readFileAsync = Promise.promisify(require('fs').readFile)
+        readFileAsync(path.resolve(path.join(__dirname, 'var/log/server-out-0.log')), 'utf-8').then(result => {
+          console.log('GET_LOG', result)
+          res.json({
+            status: 'OK',
+            data: result
+          })
+        })
+        break
+      default:
+        res.json({
+          status: 'FAIL',
+          data: 'command not found'
+        })
+        break
+    }
+  })
+
   app.listen(config.port)
   console.log(`start server on port ${config.port}`)
 }
