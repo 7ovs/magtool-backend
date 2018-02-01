@@ -19,6 +19,7 @@
     "lodash": "^4.17.4",
     "moment": "^2.20.1",
     "pbkdf2-password": "^1.2.1",
+    "readdirp": "^2.1.0",
     "redis": "^2.8.0"
   },
   "devDependencies": {

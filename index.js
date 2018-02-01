@@ -10,6 +10,7 @@ var path = require('path')
 var Promise = require('bluebird')
 var execAsync = Promise.promisify(require('child_process').exec)
 var fs = require('fs')
+var readdirp = require('readdirp')
 
 var app = express()
 
@@ -170,6 +171,68 @@ var main = async () => {
             data: result
           })
         })
+        break
+      default:
+        res.json({
+          status: 'FAIL',
+          data: 'command not found'
+        })
+        break
+    }
+  })
+
+  class FilesTree {
+    constructor () {
+      this._tree = {}
+    }
+
+    _add (tree, pa) {
+      if (pa.length === 1) {
+        tree[pa[0]] = {
+          name: pa[0]
+        }
+        return tree
+      } else {
+        if (!tree[pa[0]]) {
+          tree[pa[0]] = {
+            name: pa[0],
+            children: {}
+          }
+        }
+        tree[pa[0]].children = this._add(tree[pa[0]].children, pa.slice(1))
+        return tree
+      }
+    }
+
+    add (entry) {
+      let pa = entry.path.split('/')
+      this._tree = this._add(this._tree, pa)
+    }
+
+    get tree () {
+      return this._tree
+    }
+  }
+
+  app.post('/links', checkAuth, jsonParser, (req, res) => {
+    if (!req.body) return res.sendStatus(400)
+    const cmd = req.body.command
+    console.log('POST /links', req.body)
+    switch (cmd) {
+      case 'GET_FILES_LIST':
+        console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
+        var result = new FilesTree()
+        readdirp({ root: path.resolve(config.target_dir), depth: 2 })
+          .on('data', entry => {
+            console.log('data:', entry)
+            result.add(entry)
+          })
+          .on('end', () => {
+            res.json({
+              status: 'OK',
+              data: result.tree
+            })
+          })
         break
       default:
         res.json({
