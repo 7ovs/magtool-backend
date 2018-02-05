@@ -222,7 +222,7 @@ var main = async () => {
       case 'GET_FILES_LIST':
         console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
         var result = new FilesTree()
-        readdirp({ root: path.resolve(config.target_dir), depth: 2 })
+        readdirp({ root: path.resolve(config.target_dir), depth: 3 })
           .on('data', entry => {
             console.log('data:', entry)
             result.add(entry)
