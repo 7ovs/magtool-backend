@@ -4,8 +4,6 @@ const bodyParser = require('body-parser')
 const hash = require('pbkdf2-password')()
 const config = require('./etc/config.json')
 const jwt = require('jsonwebtoken')
-// var RedisStore = require('./lib/store')
-// var { timeout } = require('./lib/util')
 var { resolve, join } = require('path')
 var Promise = require('bluebird')
 var execAsync = Promise.promisify(require('child_process').exec)
@@ -22,19 +20,8 @@ var main = async () => {
   const adapter = new FileSync(config.db.path)
   const db = low(adapter)
 
-  // const pidPath = path.resolve(path.join(__dirname, config.redis.pidfile))
-  // if (!fs.existsSync(pidPath)) {
-  //   await RedisStore.startSrever(config.redis)
-  //   await timeout(500)
-  // } else {
-  //   console.log('server already started')
-  // }
-
-  // var store = new RedisStore(config.redis)
-  // var users = await store.getMap('users')
   await db.defaults({ users: [] }).write()
   const users = await db.get('users').keyBy('name').value()
-  console.log(users)
 
   var auth = (name, password, callback) => {
     const user = users[name]
@@ -46,7 +33,6 @@ var main = async () => {
     })
   }
 
-  // TODO
   var checkAuth = (req, res, next) => {
     try {
       const token = req.headers['x-access-token']
@@ -226,7 +212,6 @@ var main = async () => {
   app.post('/links', checkAuth, jsonParser, (req, res) => {
     if (!req.body) return res.sendStatus(400)
     const cmd = req.body.command
-    console.log('POST /links', req.body)
     switch (cmd) {
       case 'GET_FILES_LIST':
         console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
@@ -241,6 +226,9 @@ var main = async () => {
               data: result.tree
             })
           })
+        break
+      case 'CREATE_LINK':
+        console.log(new Date(), 'CREATE_LINK', req.body)
         break
       default:
         res.json({
