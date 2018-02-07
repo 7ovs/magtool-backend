@@ -4,17 +4,19 @@ const bodyParser = require('body-parser')
 const hash = require('pbkdf2-password')()
 const config = require('./etc/config.json')
 const jwt = require('jsonwebtoken')
-var { resolve, join } = require('path')
-var Promise = require('bluebird')
-var execAsync = Promise.promisify(require('child_process').exec)
-var fs = require('fs')
-var readdirp = require('readdirp')
+const { resolve, join } = require('path')
+const Promise = require('bluebird')
+const execAsync = Promise.promisify(require('child_process').exec)
+const fs = require('fs')
+const readdirp = require('readdirp')
 const low = require('lowdb')
 const FileSync = require('lowdb/adapters/FileSync')
+const uuid = require('uuid/v1')
+const crypto = require('crypto')
 
 var app = express()
 
-var jsonParser = bodyParser.json()
+const jsonParser = bodyParser.json()
 
 var main = async () => {
   const adapter = new FileSync(config.db.path)
@@ -229,6 +231,22 @@ var main = async () => {
         break
       case 'CREATE_LINK':
         console.log(new Date(), 'CREATE_LINK', req.body)
+        let linkData = req.body.data
+        const hash = crypto.createHmac('sha224', uuid())
+          .update(linkData.email)
+          .update(linkData.orderId)
+          .update(linkData.downloadCount.toString())
+          .update(linkData.files.join(';'))
+          .digest('base64')
+        linkData = {
+          id: hash,
+          link: `/get/${hash}`,
+          ...linkData
+        }
+        res.json({
+          status: 'OK',
+          data: linkData
+        })
         break
       default:
         res.json({
@@ -240,6 +258,7 @@ var main = async () => {
   })
 
   app.listen(config.port)
+  // console.log(crypto.getHashes())
   console.log(`start server on port ${config.port}`)
 }
 
