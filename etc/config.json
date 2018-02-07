@@ -5,6 +5,9 @@
     "secret": "secret....",
     "expires_in": "4h"
   },
+  "db": {
+    "path": "var/db/data.json"
+  },
   "redis": {
     "port": 6400,
     "bind": "127.0.0.1",

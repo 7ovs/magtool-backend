@@ -1,8 +1,8 @@
-var path = require('path')
-var RedisStore = require('../lib/store')
-var config = require('../etc/config.json')
-var hash = require('pbkdf2-password')()
-var { timeout } = require('../lib/util')
+const { join, resolve } = require('path')
+const hash = require('pbkdf2-password')()
+const low = require('lowdb')
+const FileSync = require('lowdb/adapters/FileSync')
+const config = require('../etc/config.json')
 
 var readInput = async () => {
   var question = async (query, password = false) => {
@@ -63,14 +63,11 @@ var createHash = async (password) => {
 }
 
 var main = async () => {
-  if (!require('fs').existsSync(path.resolve(path.join(__dirname, '..', config.redis.pidfile)))) {
-    await RedisStore.startSrever(config.redis)
-    await timeout(500)
-  } else {
-    console.log('server already started')
-  }
+  const adapter = new FileSync(resolve(join(__dirname, '..', config.db.path)))
+  const db = low(adapter)
 
-  var store = new RedisStore(config.redis)
+  await db.defaults({ users: [] })
+    .write()
 
   try {
     const { username, password } = await readInput()
@@ -80,14 +77,14 @@ var main = async () => {
       ...await createHash(password)
     }
 
-    await store.setMapVal('users', username, userobj)
+    await db.get('users')
+      .push(userobj)
+      .write()
 
     console.log('OK!', userobj)
   } catch (error) {
     console.error(error.message)
   }
-
-  RedisStore.stopServer()
 }
 
 main()

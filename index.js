@@ -1,32 +1,40 @@
-var express = require('express')
-var cors = require('cors')
-var bodyParser = require('body-parser')
-var hash = require('pbkdf2-password')()
-var config = require('./etc/config.json')
-var jwt = require('jsonwebtoken')
-var RedisStore = require('./lib/store')
-var { timeout } = require('./lib/util')
-var path = require('path')
+const express = require('express')
+const cors = require('cors')
+const bodyParser = require('body-parser')
+const hash = require('pbkdf2-password')()
+const config = require('./etc/config.json')
+const jwt = require('jsonwebtoken')
+// var RedisStore = require('./lib/store')
+// var { timeout } = require('./lib/util')
+var { resolve, join } = require('path')
 var Promise = require('bluebird')
 var execAsync = Promise.promisify(require('child_process').exec)
 var fs = require('fs')
 var readdirp = require('readdirp')
+const low = require('lowdb')
+const FileSync = require('lowdb/adapters/FileSync')
 
 var app = express()
 
 var jsonParser = bodyParser.json()
 
 var main = async () => {
-  const pidPath = path.resolve(path.join(__dirname, config.redis.pidfile))
-  if (!fs.existsSync(pidPath)) {
-    await RedisStore.startSrever(config.redis)
-    await timeout(500)
-  } else {
-    console.log('server already started')
-  }
+  const adapter = new FileSync(config.db.path)
+  const db = low(adapter)
 
-  var store = new RedisStore(config.redis)
-  var users = await store.getMap('users')
+  // const pidPath = path.resolve(path.join(__dirname, config.redis.pidfile))
+  // if (!fs.existsSync(pidPath)) {
+  //   await RedisStore.startSrever(config.redis)
+  //   await timeout(500)
+  // } else {
+  //   console.log('server already started')
+  // }
+
+  // var store = new RedisStore(config.redis)
+  // var users = await store.getMap('users')
+  await db.defaults({ users: [] }).write()
+  const users = await db.get('users').keyBy('name').value()
+  console.log(users)
 
   var auth = (name, password, callback) => {
     const user = users[name]
@@ -59,7 +67,7 @@ var main = async () => {
   app.use(cors())
 
   app.get('/', (req, res) => {
-    res.send('magtool v0.1.0')
+    res.send('magtool v0.2.0')
   })
 
   app.post('/login', jsonParser, (req, res) => {
@@ -163,14 +171,15 @@ var main = async () => {
           })
         break
       case 'GET_LOG':
-        var readFileAsync = Promise.promisify(require('fs').readFile)
-        readFileAsync(path.resolve(path.join(__dirname, 'var/log/server-out-0.log')), 'utf-8').then(result => {
-          console.log('GET_LOG', result)
-          res.json({
-            status: 'OK',
-            data: result
+        const readFileAsync = Promise.promisify(fs.readFile)
+        readFileAsync(resolve(join(__dirname, 'var/log/server-out-0.log')), 'utf-8')
+          .then(result => {
+            console.log('GET_LOG', result)
+            res.json({
+              status: 'OK',
+              data: result
+            })
           })
-        })
         break
       default:
         res.json({
@@ -222,9 +231,8 @@ var main = async () => {
       case 'GET_FILES_LIST':
         console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
         var result = new FilesTree()
-        readdirp({ root: path.resolve(config.target_dir), depth: 3 })
+        readdirp({ root: resolve(config.target_dir), depth: 3 })
           .on('data', entry => {
-            console.log('data:', entry)
             result.add(entry)
           })
           .on('end', () => {
