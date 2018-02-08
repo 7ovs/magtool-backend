@@ -1,3 +1,4 @@
+const _ = require('lodash')
 const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
@@ -13,6 +14,7 @@ const low = require('lowdb')
 const FileSync = require('lowdb/adapters/FileSync')
 const uuid = require('uuid/v1')
 const crypto = require('crypto')
+const base32Encode = require('base32-encode')
 
 var app = express()
 
@@ -232,12 +234,13 @@ var main = async () => {
       case 'CREATE_LINK':
         console.log(new Date(), 'CREATE_LINK', req.body)
         let linkData = req.body.data
-        const hash = crypto.createHmac('sha224', uuid())
+        let hash = crypto.createHash('sha224', uuid())
           .update(linkData.email)
           .update(linkData.orderId)
           .update(linkData.downloadCount.toString())
           .update(linkData.files.join(';'))
-          .digest('base64')
+          .digest()
+        hash = base32Encode(hash, 'Crockford').toLowerCase()
         linkData = {
           id: hash,
           link: `/get/${hash}`,
