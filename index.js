@@ -11,20 +11,20 @@ const execAsync = Promise.promisify(require('child_process').exec)
 const fs = require('fs')
 const readdirp = require('readdirp')
 const low = require('lowdb')
-const FileSync = require('lowdb/adapters/FileSync')
+const FileAsync = require('lowdb/adapters/FileAsync')
 const uuid = require('uuid/v1')
 const crypto = require('crypto')
 const base32Encode = require('base32-encode')
 
 var app = express()
+var downloadServer = express()
 
 const jsonParser = bodyParser.json()
 
 var main = async () => {
-  const adapter = new FileSync(config.db.path)
-  const db = low(adapter)
-
-  await db.defaults({ users: [] }).write()
+  const adapter = new FileAsync(config.db.path)
+  const db = await low(adapter)
+  await db.defaults({ users: [], links: [] }).write()
   const users = await db.get('users').keyBy('name').value()
 
   var auth = (name, password, callback) => {
@@ -174,7 +174,7 @@ var main = async () => {
       default:
         res.json({
           status: 'FAIL',
-          data: 'command not found'
+          error: 'command not found'
         })
         break
     }
@@ -244,12 +244,25 @@ var main = async () => {
         linkData = {
           id: hash,
           link: `/get/${hash}`,
-          ...linkData
+          ...linkData,
+          created_at: Date.now(),
+          updated_at: Date.now()
         }
-        res.json({
-          status: 'OK',
-          data: linkData
-        })
+        db.get('links')
+          .push(linkData)
+          .write()
+          .then(() => {
+            res.json({
+              status: 'OK',
+              data: linkData
+            })
+          })
+          .catch(err => {
+            res.json({
+              status: 'FAIL',
+              error: err.message
+            })
+          })
         break
       default:
         res.json({
@@ -260,9 +273,32 @@ var main = async () => {
     }
   })
 
+  downloadServer.get('/get/:hash', (req, res) => {
+    const linkData = db.get('links')
+      .find({ id: req.params.hash })
+      .value()
+    console.log('DOWNLOAD GET', req.params.hash, linkData)
+    if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })
+
+    const ZipStream = require('./lib/zipstream')
+    let zstream = new ZipStream({ level: 1 })
+    zstream.pipe(res)
+    Promise.mapSeries(linkData.files, (file) => {
+      const fullpath = resolve(join(config.target_dir, file))
+      console.log('add file', file)
+      return zstream.addFile(fs.createReadStream(fullpath), { name: file })
+    }).then(() => {
+      return zstream.finalize()
+    }).then(written => {
+      console.log('File successfully sended,', written, 'bytes written')
+    })
+  })
+
   app.listen(config.port)
+  downloadServer.listen(5000)
   // console.log(crypto.getHashes())
   console.log(`start server on port ${config.port}`)
+  console.log(`start download server on port ${5000}`)
 }
 
 main()
