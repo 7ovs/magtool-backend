@@ -12,9 +12,10 @@ const fs = require('fs')
 const readdirp = require('readdirp')
 const low = require('lowdb')
 const FileAsync = require('lowdb/adapters/FileAsync')
-const uuid = require('uuid/v1')
+const uuid = require('uuid/v4')
 const crypto = require('crypto')
 const base32Encode = require('base32-encode')
+const moment = require('moment')
 
 var app = express()
 var downloadServer = express()
@@ -25,6 +26,7 @@ var main = async () => {
   const adapter = new FileAsync(config.db.path)
   const db = await low(adapter)
   await db.defaults({ users: [], links: [] }).write()
+  await db.set('links', []).write()
   const users = await db.get('users').keyBy('name').value()
 
   var auth = (name, password, callback) => {
@@ -213,6 +215,20 @@ var main = async () => {
     }
   }
 
+  function generateHash (linkData) {
+    let hash = crypto.createHash('sha224')
+      .update(linkData.id)
+      .update(linkData.email + '') // if null...
+      .update(linkData.orderId + '')
+      .update(linkData.downloadsLimit.toString())
+      .update(linkData.files.join(';'))
+      .update(linkData.created_by)
+      .update(linkData.created_at)
+      .digest()
+    hash = base32Encode(hash, 'Crockford').toLowerCase()
+    return hash
+  }
+
   app.post('/links', checkAuth, jsonParser, (req, res) => {
     if (!req.body) return res.sendStatus(400)
     const cmd = req.body.command
@@ -220,7 +236,7 @@ var main = async () => {
       case 'GET_FILES_LIST':
         console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
         var result = new FilesTree()
-        readdirp({ root: resolve(config.target_dir), depth: 3 })
+        readdirp({ root: resolve(config.target_dir), fileFilter: ['!.*'] })
           .on('data', entry => {
             result.add(entry)
           })
@@ -234,20 +250,16 @@ var main = async () => {
       case 'CREATE_LINK':
         console.log(new Date(), 'CREATE_LINK', req.body)
         let linkData = req.body.data
-        let hash = crypto.createHash('sha224', uuid())
-          .update(linkData.email)
-          .update(linkData.orderId)
-          .update(linkData.downloadCount.toString())
-          .update(linkData.files.join(';'))
-          .digest()
-        hash = base32Encode(hash, 'Crockford').toLowerCase()
+        linkData.downloadsLimit = +linkData.downloadsLimit // Force save as Number, not String
         linkData = {
-          id: hash,
-          link: `/get/${hash}`,
+          id: uuid(),
           ...linkData,
-          created_at: Date.now(),
-          updated_at: Date.now()
+          downloadsCount: 0,
+          created_at: moment().toISOString(),
+          updated_at: moment().toISOString()
         }
+        linkData.hash = generateHash(linkData)
+        linkData.link = `/get/${linkData.hash}`
         db.get('links')
           .push(linkData)
           .write()
@@ -274,11 +286,14 @@ var main = async () => {
   })
 
   downloadServer.get('/get/:hash', (req, res) => {
-    const linkData = db.get('links')
-      .find({ id: req.params.hash })
-      .value()
+    const _linkRec = db.get('links').find({ hash: req.params.hash })
+    const linkData = _linkRec.value()
     console.log('DOWNLOAD GET', req.params.hash, linkData)
     if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })
+
+    if (linkData.downloadsCount >= linkData.downloadsLimit) {
+      return res.json({ status: 'FAIL', error: 'download limit exceeded' })
+    }
 
     const ZipStream = require('./lib/zipstream')
     let zstream = new ZipStream({ level: 1 })
@@ -291,6 +306,7 @@ var main = async () => {
       return zstream.finalize()
     }).then(written => {
       console.log('File successfully sended,', written, 'bytes written')
+      _linkRec.assign({ downloadsCount: ++linkData.downloadsCount }).write()
     })
   })
 
