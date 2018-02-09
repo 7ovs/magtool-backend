@@ -276,6 +276,13 @@ var main = async () => {
             })
           })
         break
+      case 'GET_LINKS':
+        const linkList = db.get('links').value()
+        res.json({
+          status: 'OK',
+          data: linkList
+        })
+        break
       default:
         res.json({
           status: 'FAIL',
