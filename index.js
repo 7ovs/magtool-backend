@@ -26,7 +26,7 @@ var main = async () => {
   const adapter = new FileAsync(config.db.path)
   const db = await low(adapter)
   await db.defaults({ users: [], links: [] }).write()
-  await db.set('links', []).write()
+  // await db.set('links', []).write()
   const users = await db.get('users').keyBy('name').value()
 
   var auth = (name, password, callback) => {
@@ -283,6 +283,17 @@ var main = async () => {
           data: linkList
         })
         break
+      case 'DELETE_LINK':
+        console.log('DELETE_LINK', req.body)
+        let id = req.body.id
+        db.get('links').remove({id}).write().then(() => {
+          const linkList = db.get('links').value()
+          res.json({
+            status: 'OK',
+            data: linkList
+          })
+        })
+        break
       default:
         res.json({
           status: 'FAIL',
@@ -296,7 +307,7 @@ var main = async () => {
     const _linkRec = db.get('links').find({ hash: req.params.hash })
     const linkData = _linkRec.value()
     console.log('DOWNLOAD GET', req.params.hash, linkData)
-    if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })
+    if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })    
 
     if (linkData.downloadsCount >= linkData.downloadsLimit) {
       return res.json({ status: 'FAIL', error: 'download limit exceeded' })
@@ -313,7 +324,19 @@ var main = async () => {
       return zstream.finalize()
     }).then(written => {
       console.log('File successfully sended,', written, 'bytes written')
-      _linkRec.assign({ downloadsCount: ++linkData.downloadsCount }).write()
+      let dontIncrementCount = false
+      if (req.query.token) {
+        try {
+          const session = jwt.verify(req.query.token, config.session.secret)
+          if (users[session.username]) {
+            dontIncrementCount = true
+            console.log('detect logged in user, do not increment downloads counter')
+          }
+        } catch (error) {}
+      }
+      if (!dontIncrementCount) {
+        _linkRec.assign({ downloadsCount: ++linkData.downloadsCount }).write()
+      }
     })
   })
 
