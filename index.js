@@ -1,4 +1,4 @@
-const _ = require('lodash')
+const _ = require('lodash') // eslint-disable-line
 const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
@@ -101,11 +101,12 @@ var main = async () => {
     }
   })
 
-  app.post('/logout', jsonParser, (req, res) => {
-    res.json({
-      status: 'OK'
-    })
-  })
+  // TODO: delete?
+  // app.post('/logout', jsonParser, (req, res) => {
+  //   res.json({
+  //     status: 'OK'
+  //   })
+  // })
 
   app.post('/command', checkAuth, jsonParser, (req, res) => {
     if (!req.body) return res.sendStatus(400)
@@ -250,6 +251,7 @@ var main = async () => {
         break
       case 'CREATE_LINK':
         console.log(new Date(), 'CREATE_LINK', req.body)
+        if (!req.body.data) return res.status(500)
         let linkData = req.body.data
         linkData.downloadsLimit = +linkData.downloadsLimit // Force save as Number, not String
         linkData = {
@@ -257,7 +259,8 @@ var main = async () => {
           ...linkData,
           downloadsCount: 0,
           created_at: moment().toISOString(),
-          updated_at: moment().toISOString()
+          updated_at: moment().toISOString(),
+          access_log: []
         }
         linkData.hash = generateHash(linkData)
         linkData.link = `/get/${linkData.hash}`
@@ -286,7 +289,8 @@ var main = async () => {
         break
       case 'DELETE_LINK':
         console.log('DELETE_LINK', req.body)
-        let id = req.body.id
+        if (!req.body.id) return res.status(500)
+        const id = req.body.id
         db.get('links').remove({id}).write().then(() => {
           const linkList = db.get('links').value()
           res.json({
@@ -317,8 +321,8 @@ var main = async () => {
   })
 
   downloadServer.get('/get/:hash', (req, res) => {
-    const _linkRec = db.get('links').find({ hash: req.params.hash })
-    const linkData = _linkRec.value()
+    const cursor = db.get('links').find({ hash: req.params.hash })
+    const linkData = cursor.value()
     console.log('DOWNLOAD GET', req.params.hash, linkData)
     if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })    
 
@@ -348,7 +352,12 @@ var main = async () => {
         } catch (error) {}
       }
       if (!dontIncrementCount) {
-        _linkRec.assign({ downloadsCount: ++linkData.downloadsCount }).write()
+        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
+        const ts = moment().toISOString()
+        cursor.assign({ downloadsCount: ++linkData.downloadsCount }).write()
+        cursor.defaults({ 'access_log': [] }).get('access_log').push({ ts, ip }).write()
+        console.log(cursor.value())
+        // cursor.write()
       }
     })
   })
