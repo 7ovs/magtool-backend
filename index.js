@@ -295,6 +295,18 @@ var main = async () => {
           })
         })
         break
+      case 'RESET_COUNTER':
+        console.log('RESET_COUNTER', req.body)
+        if (!req.body.id) return res.status(500)
+        const newCount = parseInt(req.body.count, 10) || 0
+        const cursor = db.get('links').find({ id: req.body.id }).assign({ downloadsCount: newCount })
+        cursor.write().then(() => {
+          res.json({
+            status: 'OK',
+            data: cursor.value()
+          })
+        })
+        break
       default:
         res.json({
           status: 'FAIL',
