@@ -3,6 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
 const hash = require('pbkdf2-password')()
+const access = require('./etc/access.json')
 const config = require('./etc/config.json')
 const jwt = require('jsonwebtoken')
 const { resolve, join } = require('path')
@@ -44,7 +45,7 @@ var main = async () => {
       const token = req.headers['x-access-token']
       if (!token) throw (new Error('login is required'))
 
-      const session = jwt.verify(token, config.session.secret)
+      const session = jwt.verify(token, access.session)
 
       if (!users[session.username]) throw (new Error('user not found'))
       next()
@@ -73,7 +74,7 @@ var main = async () => {
         return
       }
 
-      var token = jwt.sign({ username: user.name }, config.session.secret, { expiresIn: config.session.expires_in })
+      var token = jwt.sign({ username: user.name }, access.session, { expiresIn: config.session.expires_in })
       res.json({
         status: 'OK',
         token
@@ -85,9 +86,9 @@ var main = async () => {
     try {
       const token = req.headers['x-access-token']
       if (!token) throw (new Error('token not found'))
-      const session = jwt.verify(token, config.session.secret)
+      const session = jwt.verify(token, access.session)
       if (!users[session.username]) throw (new Error('user not found'))
-      var newToken = jwt.sign({ username: session.username }, config.session.secret, { expiresIn: config.session.expires_in })
+      var newToken = jwt.sign({ username: session.username }, access.session, { expiresIn: config.session.expires_in })
       res.json({
         status: 'OK',
         token: newToken
@@ -216,7 +217,7 @@ var main = async () => {
   }
 
   function generateHash (linkData) {
-    let hash = crypto.createHash('sha224')
+    let hash = crypto.createHmac('sha224', access.links)
       .update(linkData.id)
       .update(linkData.email + '') // if null...
       .update(linkData.orderId + '')
@@ -327,7 +328,7 @@ var main = async () => {
       let dontIncrementCount = false
       if (req.query.token) {
         try {
-          const session = jwt.verify(req.query.token, config.session.secret)
+          const session = jwt.verify(req.query.token, access.session)
           if (users[session.username]) {
             dontIncrementCount = true
             console.log('detect logged in user, do not increment downloads counter')
