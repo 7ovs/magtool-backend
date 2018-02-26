@@ -18,6 +18,12 @@ const crypto = require('crypto')
 const base32Encode = require('base32-encode')
 const moment = require('moment')
 
+const access = require('./etc/access.json')
+const config = {
+  ...require(`./etc/config.json`),
+  ...require(`./etc/${ENV}.config.json`)
+}
+
 var app = express()
 var downloadServer = express()
 

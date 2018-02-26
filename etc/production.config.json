@@ -1,0 +1,7 @@
+{
+  "api_host": "127.0.0.1",
+  "download_host": "127.0.0.1",
+  "api_domain": "api.obitel-minsk.com",
+  "download_domain": "download.obitel-minsk.com",
+  "target_dir": "/home/nodejs/downloads-root"
+}

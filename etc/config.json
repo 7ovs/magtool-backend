@@ -1,18 +1,11 @@
 {
-  "port": 4000,
-  "target_dir": "__tmp/TARGET",
+  "api_port": 4000,
+  "download_port": 4001,
+  "log_file": "var/log/magtool.log",
   "session": {
     "expires_in": "4h"
   },
   "db": {
     "path": "var/db/data.json"
-  },
-  "redis": {
-    "port": 6400,
-    "bind": "127.0.0.1",
-    "loglevel": "notice",
-    "dir": "var/db",
-    "dbfilename": "data.rdb",
-    "pidfile": "var/pid/redis.pid"
   }
 }
