@@ -1,16 +1,19 @@
 {
-  "name": "magtool-backend",
-  "script": "./index.js",
-  "out_file": "./var/log/server-out.log",
-  "error_file": "./var/log/server-error.log",
-  "pid_file": "./var/pid/server.pid",
-  "watch": true,
-  "ignore_watch": [
-    "node_modules",
-    "var",
-    "dist",
-    ".git",
-    ".vscode",
-    "__lab"
-  ]
+  "apps": [{
+    "name": "magtool-backend",
+    "script": "./index.js",
+    "combine_logs": true,
+    "log_type": "json",
+    "log_file": "./var/log/magtool.log",
+    "out_file": "./var/log/magtool-out.log",
+    "error_file": "./var/log/magtool-error.log",
+    "pid_file": "./var/pid/magtool.pid",
+    "watch": ["lib", "etc", "package.json", "process.config.json", "index.js"],
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "env_production": {
+      "NODE_ENV": "development"
+    }
+  }]
 }
