@@ -273,6 +273,46 @@ var main = async () => {
     return hash
   }
 
+  app.post('/profile', checkAuth, jsonParser, (req, res) => {
+    if (!req.body) return res.sendStatus(400)
+    const cmd = req.body.command
+    switch (cmd) {
+      case 'CHANGE_PASSWORD':
+        console.log('CHANGE_PASSWORD', req.body)
+        try {
+          const password = req.body.data.password
+          const newPassword = req.body.data.new_password
+          const token = req.headers['x-access-token']
+          if (!token) throw (new Error('token is required'))
+          const session = jwt.verify(token, access.session)
+          if (!users[session.username]) throw (new Error('user not found'))
+          const user = users[session.username]
+          console.log('user', user)
+          hasher({
+            password,
+            salt: user.salt
+          }, (err, pass, salt, hash) => {
+            console.log({err, pass, salt, hash})
+            if (err) return res.json({ status: 'FAIL', error: 'validation failed, ' + err })
+            if (hash !== user.hash) return res.json({ status: 'FAIL', error: 'invalid password' })
+            hasher({
+              password: newPassword,
+              salt: user.salt
+            }, (err, pass, salt, hash) => {
+              if (err) return res.json({ status: 'FAIL', error: 'update password failed' })
+              user.hash = hash
+              db.get('users').find({name: user.name}).assign(user).write().then(() => {
+                res.json({ status: 'OK' })
+              })
+              users = db.get('users')
+            })
+          })
+        } catch (error) {
+          res.json({ status: 'FAIL', error: error.message })
+        }
+    }
+  })
+
   app.post('/links', checkAuth, jsonParser, (req, res) => {
     if (!req.body) return res.sendStatus(400)
     const cmd = req.body.command
