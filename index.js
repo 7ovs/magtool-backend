@@ -50,9 +50,7 @@ var main = async () => {
     users = db.get('users').keyBy('name').value()
     const user = users[name]
     if (!user) return callback(new Error('cannot find user'))
-    console.log({ password, salt: user.salt })
     hasher({ password, salt: user.salt }, (err, pass, salt, hash) => {
-      console.log({ pass, salt, hash })
       if (err) return callback(err)
       if (hash === user.hash) return callback(null, user)
       callback(new Error('invalid password'))
@@ -278,7 +276,7 @@ var main = async () => {
     const cmd = req.body.command
     switch (cmd) {
       case 'CHANGE_PASSWORD':
-        console.log('CHANGE_PASSWORD', req.body)
+        console.log('CHANGE_PASSWORD')
         try {
           const password = req.body.data.password
           const newPassword = req.body.data.new_password
@@ -287,12 +285,10 @@ var main = async () => {
           const session = jwt.verify(token, access.session)
           if (!users[session.username]) throw (new Error('user not found'))
           const user = users[session.username]
-          console.log('user', user)
           hasher({
             password,
             salt: user.salt
           }, (err, pass, salt, hash) => {
-            console.log({err, pass, salt, hash})
             if (err) return res.json({ status: 'FAIL', error: 'validation failed, ' + err })
             if (hash !== user.hash) return res.json({ status: 'FAIL', error: 'invalid password' })
             hasher({
@@ -305,6 +301,7 @@ var main = async () => {
                 res.json({ status: 'OK' })
               })
               users = db.get('users')
+              console.log(`CHANGE_PASSWORD for ${user.name} - OK!`)
             })
           })
         } catch (error) {
@@ -402,12 +399,13 @@ var main = async () => {
     }
   })
 
-  downloadServer.get('/get/:hash', (req, res) => {
+  downloadServer.get('/get/:hash/:filename*?', (req, res) => {
     const cursor = db.get('links').find({ hash: req.params.hash })
     const linkData = cursor.value()
-    console.log('DOWNLOAD GET', req.params.hash, linkData)
+    const session = req.query.token ? jwt.verify(req.query.token, access.session) : undefined
+    console.log('DOWNLOAD GET', req.params.hash) // , linkData)
     if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })
-    if (linkData.downloadsCount >= linkData.downloadsLimit) {
+    if (linkData.downloadsCount >= linkData.downloadsLimit && !(session && users[session.username])) {
       return res.json({ status: 'FAIL', error: 'download limit exceeded' })
     }
 
@@ -425,7 +423,6 @@ var main = async () => {
       let dontIncrementCount = false
       if (req.query.token) {
         try {
-          const session = jwt.verify(req.query.token, access.session)
           if (users[session.username]) {
             dontIncrementCount = true
             console.log('detect logged in user, do not increment downloads counter')
