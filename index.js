@@ -1,14 +1,14 @@
+const ENV = process.env.NODE_ENV || 'development'
+
 const _ = require('lodash') // eslint-disable-line
 const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const hash = require('pbkdf2-password')()
-const access = require('./etc/access.json')
-const config = require('./etc/config.json')
+const hasher = require('pbkdf2-password')()
 const jwt = require('jsonwebtoken')
 const { resolve, join } = require('path')
 const Promise = require('bluebird')
-const execAsync = Promise.promisify(require('child_process').exec)
+const { exec } = require('child_process')
 const fs = require('fs')
 const readdirp = require('readdirp')
 const low = require('lowdb')
@@ -29,17 +29,30 @@ var downloadServer = express()
 
 const jsonParser = bodyParser.json()
 
+function execAsync (...args) {
+  return new Promise((resolve, reject) => {
+    exec(...args, (error, stdout, stderr) => {
+      if (error) reject(new Error(error))
+      return resolve({error, stdout, stderr})
+    })
+  })
+}
+
 var main = async () => {
   const adapter = new FileAsync(config.db.path)
   const db = await low(adapter)
   await db.defaults({ users: [], links: [] }).write()
   // await db.set('links', []).write()
-  const users = await db.get('users').keyBy('name').value()
+  var users = await db.get('users').keyBy('name').value()
 
-  var auth = (name, password, callback) => {
+  async function auth (name, password, callback) {
+    await db.read()
+    users = db.get('users').keyBy('name').value()
     const user = users[name]
     if (!user) return callback(new Error('cannot find user'))
-    hash({ password, salt: user.salt }, (err, pass, salt, hash) => {
+    console.log({ password, salt: user.salt })
+    hasher({ password, salt: user.salt }, (err, pass, salt, hash) => {
+      console.log({ pass, salt, hash })
       if (err) return callback(err)
       if (hash === user.hash) return callback(null, user)
       callback(new Error('invalid password'))
@@ -132,56 +145,79 @@ var main = async () => {
   app.post('/control', checkAuth, jsonParser, (req, res) => {
     if (!req.body) return res.sendStatus(400)
     const cmd = req.body.command
-    console.log('POST /control', req.body)
     switch (cmd) {
       case 'PING':
-        console.log(new Date(), 'COMMAND PING')
         res.json({
           status: 'OK',
           data: 'PONG'
         })
         break
-      case 'RESET':
-        const cmds = [
-          'service apache2 restart',
-          'service varnish restart',
-          'service nginx restart' ]
-        Promise.map(cmds, cmd => {
-          return execAsync(cmd)
-        }).then((results) => {
-          console.log('RESET SUCCESS: ', results)
-          res.json({ status: 'OK' })
-        }).catch(err => {
-          console.log('RESET FAIL: ', err)
-          res.json({
-            status: 'FAIL',
-            error: err.message
+      case 'RESET_APACHE':
+        execAsync('sudo /usr/sbin/service apache2 restart')
+          .then((results) => {
+            console.log('RESET_APACHE SUCCESS: ', results)
+            res.json({ status: 'OK' })
+          }).catch(err => {
+            console.log('RESET_APACHE FAIL: ', err)
+            res.json({
+              status: 'FAIL',
+              error: err.message
+            })
           })
-        })
+        break
+      case 'RESET_VARNISH':
+        execAsync('sudo /usr/sbin/service varnish restart')
+          .then((results) => {
+            console.log('RESET_VARNISH SUCCESS: ', results)
+            res.json({ status: 'OK' })
+          }).catch(err => {
+            console.log('RESET_VARNISH FAIL: ', err)
+            res.json({
+              status: 'FAIL',
+              error: err.message
+            })
+          })
         break
       case 'CLEAN_CACHE':
-        execAsync('/var/www/magento21/bin/magento cache:flush', { cwd: '/var/www/magento21' })
+        execAsync('sudo /var/www/magento21/bin/magento cache:flush', { cwd: '/var/www/magento21' })
           .then(result => {
             console.log('cache:flush', result)
-            execAsync('service varnish restart')
+            return execAsync('sudo /usr/sbin/service varnish restart')
           })
           .then(result => {
-            console.log('service varnish restart', result)
+            console.log('sudo /usr/sbin/service varnish restart', result)
             res.json({ status: 'OK' })
+          })
+          .catch(err => {
+            console.log('CLEAN_CACHE FAIL: ', err)
+            res.json({
+              status: 'FAIL',
+              error: err.message
+            })
           })
         break
       case 'GET_LOG':
-        const readFileAsync = Promise.promisify(fs.readFile)
-        readFileAsync(resolve(join(__dirname, 'var/log/server-out-0.log')), 'utf-8')
+        const count = req.body.count || 100
+        const logPath = resolve(join(__dirname, config.log_file))
+        execAsync(`tail -n ${count} ${logPath}`)
           .then(result => {
-            console.log('GET_LOG', result)
+            const logs = result.stdout.trim().split('\n').map(it => JSON.parse(it.trim())) || []
             res.json({
               status: 'OK',
-              data: result
+              data: logs
+            })
+          })
+          .catch(err => {
+            console.log('GET_LOG FAIL: ', err)
+            res.json({
+              status: 'FAIL',
+              error: err.message
             })
           })
         break
       default:
+        console.log('POST /control', req.body)
+        console.log('WARN: command not found')
         res.json({
           status: 'FAIL',
           error: 'command not found'
@@ -242,7 +278,7 @@ var main = async () => {
     const cmd = req.body.command
     switch (cmd) {
       case 'GET_FILES_LIST':
-        console.log(new Date(), 'GET_FILES_LIST', config.target_dir)
+        console.log('GET_FILES_LIST', config.target_dir)
         var result = new FilesTree()
         readdirp({ root: resolve(config.target_dir), fileFilter: ['!.*'] })
           .on('data', entry => {
@@ -256,7 +292,7 @@ var main = async () => {
           })
         break
       case 'CREATE_LINK':
-        console.log(new Date(), 'CREATE_LINK', req.body)
+        console.log('CREATE_LINK', req.body)
         if (!req.body.data) return res.status(500)
         let linkData = req.body.data
         linkData.downloadsLimit = +linkData.downloadsLimit // Force save as Number, not String
@@ -269,7 +305,7 @@ var main = async () => {
           access_log: []
         }
         linkData.hash = generateHash(linkData)
-        linkData.link = `/get/${linkData.hash}`
+        linkData.link = `/get/${linkData.hash}/archive.zip`
         db.get('links')
           .push(linkData)
           .write()
@@ -330,8 +366,7 @@ var main = async () => {
     const cursor = db.get('links').find({ hash: req.params.hash })
     const linkData = cursor.value()
     console.log('DOWNLOAD GET', req.params.hash, linkData)
-    if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })    
-
+    if (!linkData) return res.json({ status: 'FAIL', error: 'not found' })
     if (linkData.downloadsCount >= linkData.downloadsLimit) {
       return res.json({ status: 'FAIL', error: 'download limit exceeded' })
     }
@@ -362,17 +397,14 @@ var main = async () => {
         const ts = moment().toISOString()
         cursor.assign({ downloadsCount: ++linkData.downloadsCount }).write()
         cursor.defaults({ 'access_log': [] }).get('access_log').push({ ts, ip }).write()
-        console.log(cursor.value())
-        // cursor.write()
       }
     })
   })
 
-  app.listen(config.port)
-  downloadServer.listen(5000)
-  // console.log(crypto.getHashes())
-  console.log(`start server on port ${config.port}`)
-  console.log(`start download server on port ${5000}`)
+  app.listen(config.api_port)
+  downloadServer.listen(config.download_port)
+  console.log(`start server on port ${config.api_port}`)
+  console.log(`start download server on port ${config.download_port}`)
 }
 
 main()
