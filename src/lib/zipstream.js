@@ -1,5 +1,6 @@
 const zlib = require('zlib')
 const { Readable } = require('stream')
+const { createWriteStream, rename, unlink } = require('fs')
 
 /* eslint-disable no-multi-spaces */
 
@@ -90,15 +91,31 @@ Crc32.createCRC32 = function () {
   return new Crc32()
 }
 
-module.exports = class ZipStream extends Readable {
+class ZipStream extends Readable {
   constructor (options) {
-    super()
+    super(options)
     this.fileptr = 0
-    this.files = []
+    this.files   = []
     this.options = options
+    // ZipStream.lock[this.options.cacheFile] = true
+    // this.cache = createWriteStream(this.options.cacheFile)
   }
 
-  _read () {}
+  _read (size) {}
+
+  // push (buffer) {
+  //   if (buffer) {
+  //     console.log('push', buffer.length)
+  //     this.cache.write(buffer)
+  //   } else {
+  //     this.cache.end()
+  //     ZipStream.lock[this.options.cacheFile] = false
+  //     setTimeout(() => {
+  //       unlink(this.cacheFile, () => {})
+  //     }, this.options.cacheExpireIn)
+  //   }
+  //   super.push(buffer)
+  // }
 
   addFile (source, file) {
     return new Promise((resolve, reject) => {
@@ -263,3 +280,6 @@ module.exports = class ZipStream extends Readable {
     this.fileptr += ptr
   }
 }
+ZipStream.lock = {}
+
+module.exports = ZipStream

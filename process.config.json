@@ -8,7 +8,7 @@
     "out_file": "./var/log/magtool-out.log",
     "error_file": "./var/log/magtool-error.log",
     "pid_file": "./var/pid/magtool.pid",
-    "watch": ["lib", "etc", "package.json", "process.config.json", "index.js"],
+    "watch": ["src", "package.json", "process.config.json", "index.js"],
     "env": {
       "NODE_ENV": "production"
     },

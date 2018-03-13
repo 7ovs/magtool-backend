@@ -1,0 +1,7 @@
+{
+  "target_dir": "__tmp/TARGET",
+  "cache_dir": "__tmp/CACHE",
+  "loglevel": "debug",
+  "session.secret": "secret1...",
+  "links.secret": "secret2..."
+}

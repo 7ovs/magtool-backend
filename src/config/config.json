@@ -1,0 +1,8 @@
+{
+  "api_port": 4000,
+  "download_port": 4001,
+  "log_file": "var/log/magtool.log",
+  "session.expires_in": "4h",
+  "db.path": "var/db/data.json",
+  "cache.expires_in": "300000"
+}

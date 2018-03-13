@@ -1,3 +1,12 @@
 {
-    "extends": "standard"
+  "extends": "standard",
+  "rules": {
+      "space-before-function-paren": [ "error", "always" ],
+      "no-multi-spaces": ["off"],
+    "key-spacing": [ "error", {
+        "mode": "minimum"
+      }
+    ],
+    "generator-star-spacing": "off"
+  }
 }

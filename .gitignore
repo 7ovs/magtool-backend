@@ -3,3 +3,6 @@ __*
 .vscode/**
 dist/**
 etc/access.json
+etc/production.config.json
+src/config/production.config.json
+production.config.json
