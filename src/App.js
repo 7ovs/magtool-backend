@@ -33,6 +33,7 @@ module.exports = class App {
       const { linksRoute, downloadRoute } = await require('./controllers/links')(this)
       const controlRoute = await require('./controllers/control')(this)
       const profileRoute = await require('./controllers/profile')(this)
+      const mailerRoute  = await require('./controllers/mailer')(this)
 
       this.apiServer.post('/login', jsonParser, loginRoute)
       this.apiServer.post('/regen', jsonParser, regenRoute)
@@ -40,6 +41,7 @@ module.exports = class App {
       this.apiServer.post('/control', checkAuth, jsonParser, controlRoute)
       this.apiServer.post('/links',   checkAuth, jsonParser, linksRoute)
       this.apiServer.post('/profile', checkAuth, jsonParser, profileRoute)
+      this.apiServer.post('/mailer',  checkAuth, jsonParser, mailerRoute)
 
       // this.dlServer.use(cookieParser())
       this.dlServer.get('/get/:hash/:filename*?', downloadRoute)

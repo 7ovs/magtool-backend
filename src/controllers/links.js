@@ -93,7 +93,7 @@ module.exports = async ($app) => {
     for (let hash in cacheTable) {
       const cacheItem = cacheTable[hash]
       if (cacheItem.active === 0 && cacheItem.expiresIn < Date.now()) {
-        $log.info(`clean cache for`, hash, cacheTable[hash])
+        $log.debug(`clean cache for`, hash, cacheTable[hash])
         unlinkSync(cacheTable[hash].cacheFile)
         delete cacheTable[hash]
       }

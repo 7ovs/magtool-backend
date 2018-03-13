@@ -22,6 +22,7 @@
     "loglevel": "^1.6.1",
     "lowdb": "^1.0.0",
     "moment": "^2.20.1",
+    "nodemailer": "^4.6.2",
     "pbkdf2-password": "^1.2.1",
     "readdirp": "^2.1.0",
     "uuid": "^3.2.1"
