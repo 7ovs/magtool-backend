@@ -89,11 +89,11 @@ module.exports = async ($app) => {
   }
 
   setInterval(() => {
-    $log.debug(`clean cache start...`, Date.now(), cacheTable)
+    // $log.debug(`clean cache start...`, Date.now(), cacheTable)
     for (let hash in cacheTable) {
       const cacheItem = cacheTable[hash]
       if (cacheItem.active === 0 && cacheItem.expiresIn < Date.now()) {
-        $log.debug(`clean cache for`, hash, cacheTable[hash])
+        // $log.debug(`clean cache for`, hash, cacheTable[hash])
         unlinkSync(cacheTable[hash].cacheFile)
         delete cacheTable[hash]
       }

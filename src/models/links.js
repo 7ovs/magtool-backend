@@ -61,8 +61,9 @@ Link.create = async (linkData) => {
     updated_at: moment().toISOString(),
     access_log: []
   }
+  if (!linkData.archiveName) linkData.archiveName = 'archive.zip'
   linkData.hash = generateLinkHash(linkData)
-  linkData.link = `/get/${linkData.hash}/archive.zip`
+  linkData.link = `/get/${linkData.hash}/${linkData.archiveName}`
   await $db.get('links').push(linkData).write()
   return new Link(linkData)
 }
